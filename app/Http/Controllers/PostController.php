@@ -12,67 +12,60 @@ use App\Models\User;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\JwtController;
+use App\Http\Requests\UpdatePostRequest;
+use MongoDB\Client as mongodb;
+
 
 class PostController extends Controller
 {
     public function post(StorePostRequest $request)
     {
         $jwt = $request->bearerToken();
-        // $key = "example_key";
-        // $decoded = JWT::decode($jwt, new Key($key, 'HS256'));
-        // dd($decoded);
-        //dd(User::where("remember_token",$jwt)->exists());
-        //dd(User::where("remember_token",$jwt)->value("remember_token") == $jwt);
-        if(User::where("remember_token",$jwt)->exists())
+        $user = (new JwtController)->jwt_decode($jwt);
+        $user = (new mongodb)->laravel_project->users->find(['email'=>$user->data->email])->toArray();
+        $validated = $request->validated();
+        // dd($validated["file"]);
+        if(($user[0]->jwt)==$jwt)
         {
-
-        $key = "example_key";
-        $decoded = JWT::decode($jwt, new Key($key, 'HS256'));
-
-        $user = User::where('email',$decoded->data->email)->first();
-        $image = $request->file;  // your base64 encoded
+        $result = (new mongodb)->laravel_project->posts;
+        $id = $result->insertOne([
+        'body'=>$validated["body"]
+        ]);
+        $id = $id->getInsertedId();
+        if(!empty($validated["file"]))
+        {
+        $image = $validated["file"];  // your base64 encoded
         $imageName = Str::random(10) . '.jpg';
         $path = 'storage/path/public/'.$imageName;
-
         //Storage::disk('local')->put($imageName, base64_decode($image));
 
-        $p = new Post();
-        $p->body = $request->body;
-        $p->file = $path;
+        $result->updateOne(
+            ['_id'=>$id],
+            ['$set'=> ['path'=>$path]]
 
-        $user->post()->save($p);
-
-        // Another way to add data in database
-        // $data = DB::table('posts')->insert([
-        //     "body" => $request->body,
-        //     "user_id"=> $decoded->data->id,
-        //     "file"=> $path,
-        // ]);
-
+        );
+        }
 
         $m = ["status"=>"success",
               "message"=>"Post submited"
     ];
-        return response()->json($m);
+        return response()->success($m,200);
 
-        }
-        else{
-            dd('get out plz');
         }
     }
 
-    public function update(Request $request,$id)
+    public function update(UpdatePostRequest $request,$id)
     {
         $jwt = $request->bearerToken();
-        $key = "example_key";
-        $decoded = JWT::decode($jwt, new Key($key, 'HS256'));
-
-        //dd(Post::where('user_id',$decoded->data->id)->exists());
+        $decoded = (new JwtController)->jwt_decode($jwt);
+        //Getting user id in string
+        //dd((string)$user[0]['_id']);
         if($request->id == $decoded->data->id)
         {
-            $user = User::where('email',$decoded->data->email)->first();
-
-            $post = Post::find($id);
+            $user = (new mongodb)->laravel_project->users->find(['email'=>$decoded->data->email])->toArray();
+            $post = (new mongodb)->laravel_project->posts->find(['_id'=> ObjectId($id)]);
+            dd($post);
             if($request->has('body'))
             {
             $post->body = $request->body;

@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 // use Illuminate\Support\Facades\Auth;
+
+use App\Http\Controllers\JwtController;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Closure;
@@ -10,6 +12,7 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Exception;
 use Auth;
+use MongoDB\Client as mongodb;
 class JwtMiddleware
 {
 
@@ -26,11 +29,10 @@ class JwtMiddleware
         $key = "example_key";
         JWT::$leeway = 60;
         try {
-            $decoded = JWT::decode($request->bearerToken(), new Key($key, 'HS256'));
-            $decoded_array = (array) $decoded;
-            $decoded_data = (array) $decoded_array['data'];
-            $user=User::query();
-            $user=$user->where('email',$decoded_data['email'])->get();
+            $decoded= (new JwtController)->jwt_decode($request->bearerToken());
+            //dd($decoded);
+            $user = (new mongodb)->laravel_project->users->find(['email'=>$decoded->data->email])->toArray();
+            //dd($user[0]->password);
             if($user[0]->verify==1)
             {
                 if(!isset($user))
@@ -39,7 +41,7 @@ class JwtMiddleware
                 }
                 else
                 {
-                    if (!Hash::check($decoded_data['password'], $user[0]->password)) {
+                    if (!Hash::check($decoded->data->password, $user[0]->password)) {
                         return response()->json(['status' => 'Not a valid user token']);
                     }
                 }

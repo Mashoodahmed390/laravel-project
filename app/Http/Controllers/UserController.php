@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\LoginRequest;
+use App\Http\Requests\UserRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -9,103 +11,116 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Hash;
+use MongoDB\Client as mongodb;
 
 class UserController extends Controller
 {
-    public function signup(Request $request)
+    public function signup(UserRequest $request)
     {
 
-
-        $validate = $request->validate([
-            'name' => 'required|max:255',
-            'email' => 'required|email',
-            'password'=> 'required'
-        ]);
-        //event(new Registered($request->email));
-        // $token = $validate->createToken('token-name');
-        // return $token->plainTextToken;
-        $validate['password'] = bcrypt($validate['password']);
-        //dd($validate);
+        $validated = $request->validated();
+        $validated['password'] = bcrypt($validated['password']);
         $user = [
-            'name' => $request->name,
+            'name' => $validated['name'],
             'info' => 'Press the Following Link to Verify Email',
-            'Verification_link'=>url('api/verifyEmail/'.$validate['email'])
+            'Verification_link'=>url('api/verifyEmail/'.$validated['email'])
         ];
 
         \Mail::to($request->email)->send(new \App\Mail\NewMail($user));
-      $result =  User::create($validate);
-        return $result;
+
+        $result = (new mongodb)->laravel_project->users;
+        $r = $result->insertOne([
+            'name' => $validated["name"],
+            'email' => $validated["email"],
+            'password' => $validated["password"],
+            'verify' => 0
+        ]);
+        $message = "Sign up successful";
+        return response()->success($message,200);
     }
 
-    public function login(Request $request)
+    public function login(LoginRequest $request)
     {
-        $validate = $request->validate([
-            'email' => 'required|email',
-            'password'=> 'required'
-        ]);
-
-
-        if(Auth::attempt(['email' => $validate["email"], 'password' => $validate["password"]]))
+        $validate = $request->validated();
+        $result = (new mongodb)->laravel_project;
+        $user = $result->users->find(["email"=>$validate["email"]])->toArray();
+        //dd($user[0]->_id);
+        //If there is no such user in database
+        if(empty($user))
         {
-        $user = auth()->user();
+            $response = [
+                "status"=>"failed",
+                "message"=>"no such user exists in database"
+            ];
 
-        if($user->verify)
+            return response()->error($response,400);
+        }
+
+        if(Hash::check($validate["password"], $user[0]->password))
         {
-        $key = "example_key";
-        $data = [
-            "id"=>$user->id,
-            "email"=>$user->email,
-            "password"=>$validate["password"]
-        ];
-        $payload = array(
-            "iss" => "http://localhost.com",
-            "aud" => "http://localhost.com",
-            "iat" => time(),
-            "nbf" => time(),
-            "data"=> $data
-);
+            if($user[0]->verify)
+            {
+            $data = [
+                "id"=>(string)$user[0]->_id,
+                "email"=>$validate["email"],
+                "password"=>$validate["password"]
+            ];
 
+            $jwt = (new JwtController)->jwt_encode($data);
 
+            $result->users->updateOne(
+                ['email'=>$validate['email']],
+                ['$set'=> ['jwt'=>$jwt]]
 
-        $jwt =  JWT::encode($payload, $key, 'HS256');
+            );
+            //$user->remember_token=$jwt;
+            //User::where("email",$user->email)->update(["remember_token"=>$jwt]);
 
-         $user->remember_token=$jwt;
-
-         User::where("email",$user->email)->update(["remember_token"=>$jwt]);
-
-         $success = [
-             "status"=>"success",
-             "token"=> $jwt
-         ];
-         return response()->json($success);
+            $response = [
+                "status"=>"success",
+                "token"=> $jwt
+            ];
+            return response()->success($response,200);
 
         }
         else{
-            return response()->json(["status"=>"failed","message"=>"Your mail is not verified"]);
+            $response = ["status"=>"failed","message"=>"Your mail is not verified"];
+            return response()->error($response,403);
         }
     }
 
         else
             {
-                echo "Either email or password was wrong";
+                $response = ["status"=>"failed","message"=>"Either email or Password was wrong"];
+                return response()->error($response,400);
             }
             }
 
             public function verify($email)
             {
-                if(User::where("email",$email)->value('verify') == 1)
+                $result = (new mongodb)->laravel_project;
+                $user = $result->users->find(["email"=>$email])->toArray();
+                if($user[0]->verify == 1)
                 {
-                    $m = ["You have already verified your account"];
-                    return response()->json($m);
+                    $response = [
+                        "status"=>"failed",
+                        "message"=>"You have already verified your account"];
+                    return response()->error($response,403);
                 }
                 else
                 {
-                    $update=User::where("email",$email)->update(["verify"=>1]);
-                    if($update){
-                        return "ture";
-                    }else{
-                        return false;
-                    }
+                    $result->users->updateOne(
+                        ['email'=>$email],
+                        [
+                         '$set'=>[ 'verify'=> 1 ]
+                        ]
+                    );
+                        $response = [
+                            "status"=>"success",
+                            "message"=>"Account Verified"
+                        ];
+                        return response()->success($response,200);
+
                 }
             }
 

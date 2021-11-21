@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\PostController;
+use App\Http\Controllers\ChatboxController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -16,21 +16,9 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-
-
-
-
 Route::middleware(['Jwt'])->group(function () {
 
-Route::post('/create/post',[PostController::class,'post']);
-Route::put('/post/update/{id}',[PostController::class,'update']);
-Route::delete('/post/delete/{id}',[PostController::class,'delete']);
-Route::get('/get/post/{id}',[PostController::class,'get_post']);
+Route::post('/sendmessage',[ChatboxController::class,'send_message']);
+
 });
-
-//Route::get('/send_notification',[NotificationController::class,'send_notification']);
-
-
-
-
 
