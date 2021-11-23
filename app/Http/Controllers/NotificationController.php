@@ -7,6 +7,8 @@ use App\Notifications\CommentNotification;
 use Illuminate\Http\Request;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
+use MongoDB\Client as mongodb;
+use App\Mail\CommentMail;
 
 class NotificationController extends Controller
 {
@@ -28,8 +30,9 @@ class NotificationController extends Controller
         //$user = User::find($decoded->data->id);
         //dd($user);
 
-        $curr_user = User::find($data['curr_user_id']);
-        $post_owner_id = User::find($data['post_id']);
+        $curr_user = (new mongodb)->laravel_project->users->findOne(["_id" => new \MongoDB\BSON\ObjectId($data['curr_user_id'])]);     //User::find($data['curr_user_id']);
+        $post_owner_id = (new mongodb)->laravel_project->posts->findOne(["_id"=> new \MongoDB\BSON\ObjectId($data['post'])]);   //  User::find($data['post_id']);
+        $receiver = (new mongodb)->laravel_project->users->findOne(["_id"=>new \MongoDB\BSON\ObjectId($post_owner_id["user_id"])]);
 
         $data = [
             'name' => $curr_user->name,
@@ -39,8 +42,8 @@ class NotificationController extends Controller
             'urlname' => 'Click to get to Post'
 
         ];
-
-        $post_owner_id->notify(New CommentNotification($data));
-
+        //dd($receiver);
+        //$receiver->notify(New CommentNotification($data));
+        \Mail::to($receiver->email)->send(new CommentMail($data));
     }
 }

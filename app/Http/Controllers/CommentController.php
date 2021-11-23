@@ -8,124 +8,109 @@ use Firebase\JWT\Key;
 use App\Models\User;
 use App\Models\Post;
 use App\Models\Comment;
-
+use Exception;
+use MongoDB\Client as mongodb;
 class CommentController extends Controller
 {
     public function comment(Request $request)
     {
+        try
+       {
         $jwt = $request->bearerToken();
-        $key = "example_key";
-        $decoded = JWT::decode($jwt, new Key($key, 'HS256'));
+        $decoded = (new JwtController)->jwt_decode($jwt);
+        $user = $decoded->data->id;
+        $post = (new mongodb)->laravel_project->posts->updateOne(["_id"=>new \MongoDB\BSON\ObjectId($request->id)],
+        ['$push'=>["comment"=>["_id"=>new \MongoDB\BSON\ObjectId(),'user_id'=>$user,'body'=>$request->body]]]
+    );
 
-        $user = User::where("email",$decoded->data->email)->first();
-        $post = Post::where("id",$request->id)->first();
-        $comment = new Comment();
-        $comment->body = $request->body;
-
-        $comment->post()->associate($request->id);
-        $comment->user()->associate($user->id);
-
-        // $post->comment()->save($comment);
-        // $user->comment()->save($comment);
-
-        $comment->save();
-
-        $notification = new NotificationController();
-
-        $current_user_comment_id = $decoded->data->id;
-        $msg = $request->body;
-        $post_owner_id = $post->user_id;
+       // $notification = new NotificationController();
 
         $data = [
-            "curr_user_id" => $current_user_comment_id,
-            "body" => $msg,
-            "post_id" => $post_owner_id,
+            "curr_user_id" => $decoded->data->id,
+            "body" => $request->body,
             "post"=> $request->id
         ];
 
-        $notification->send_notification($data);
+        (new NotificationController)->send_notification($data);
 
         $m = [
             "status"=>"Success",
             "message"=>"Comment was Successfully Posted"
         ];
-
-        return response()->json($m);
-    }
-
+        return response()->success($m,201);
+       }
+        catch(Exception $e)
+        {
+            return response()->error($e,400);
+        }
+        }
     public function update(Request $request)
     {
         $jwt = $request->bearerToken();
-        $key = "example_key";
-        $decoded = JWT::decode($jwt, new Key($key, 'HS256'));
-
-        $comment = Comment::where('id',$request->comment_id)->where('post_id',$request->post_id)->first();
-
-        //dd($comment->body); Displaying the body data
-
-        if(!isset($comment))
+        try
         {
-            $m = [
-                "status"=>"failed",
-                "message"=>"no such comment exist"
-            ];
+        $user = (new JwtController)->jwt_decode($jwt);
+        $comment = (new mongodb)->laravel_project->posts->findOne(["comment.user_id"=>$user->data->id]);
+        // dd($comment->comment[0]->body);// Displaying the body data
+        foreach($comment->comment as $com)
+        {
+            if(($com->_id==new \MongoDB\BSON\ObjectId($request->comment_id))&&($com->user_id==$user->data->id))
+            {
+                $comment = (new mongodb)->laravel_project->posts->updateOne(["comment._id"=>new \MongoDB\BSON\ObjectId($request->comment_id)],
+                ['$set'=>['comment.$.body'=>$request->body,]]);
+                $m = [
+                    "status"=> "success",
+                    "message"=>"Comment Updated Successfully"
+                ];
+                return response()->success($m,201);
+            }
 
-            return response()->json($m);
         }
-        if(($comment->user_id == $decoded->data->id))
-        {
-            $comment->body = $request->body;
-            $comment->save();
+        $m = [
+            "status"=> "failed",
+            "message"=>"Either comment does not exist or your not the owner of the comment"
+        ];
+        return response()->error($m,403);
 
-            $m = [
-                "status"=> "success",
-                "message"=>"Comment Updated Successfully"
-            ];
-            return response()->json($m);
         }
-        else
+        catch(Exception $e)
         {
-            $m = [
-                "status"=> "failed",
-                "message"=>"Your not the owner of this comment"
-            ];
+            return response()->error($e->getMessage(),400);
         }
     }
     public function delete(Request $request)
     {
         $jwt = $request->bearerToken();
-        $key = "example_key";
-        $decoded = JWT::decode($jwt, new Key($key, 'HS256'));
-
-        $comment = Comment::where('id',$request->comment_id)->where('post_id',$request->post_id)->first();
-
-        //dd($comment->body); Displaying the body data
-
-        if(!isset($comment))
+        try
         {
-            $m = [
-                "status"=>"failed",
-                "message"=>"no such comment exist"
-            ];
-
-            return response()->json($m);
-        }
-        if(($comment->user_id == $decoded->data->id))
+        $user = (new JwtController)->jwt_decode($jwt);
+        $comment = (new mongodb)->laravel_project->posts->findOne(["comment.user_id"=>$user->data->id]);
+        // dd($comment->comment[0]->body);// Displaying the body data
+        foreach($comment->comment as $com)
         {
-            $comment->delete();
+            if(($com->_id==new \MongoDB\BSON\ObjectId($request->comment_id))&&($com->user_id==$user->data->id))
+            {
+                $comment = (new mongodb)->laravel_project->posts->updateOne(["comment._id"=>new \MongoDB\BSON\ObjectId($request->comment_id)],
+                ['$pull'=>['comment'=>["_id"=>new \MongoDB\BSON\ObjectId($request->comment_id)]]]
+            );
+                $m = [
+                    "status"=> "success",
+                    "message"=>"Comment Deleted Successfully"
+                ];
+                return response()->success($m,201);
+            }
 
-            $m = [
-                "status"=> "success",
-                "message"=>"Comment Deleted Successfully"
-            ];
-            return response()->json($m);
         }
-        else
+        $m = [
+            "status"=> "failed",
+            "message"=>"Either comment does not exist or your not the owner of the comment"
+        ];
+        return response()->error($m,403);
+
+        }
+        catch(Exception $e)
         {
-            $m = [
-                "status"=> "failed",
-                "message"=>"Your not the owner of this comment"
-            ];
+            return response()->error($e->getMessage(),400);
         }
-    }
+}
 }

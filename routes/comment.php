@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['Jwt'])->group(function () {
 
 Route::get('/comment',[CommentController::class,'comment']);
-Route::get('/comment/update',[CommentController::class,'update']);
+Route::put('/comment/update',[CommentController::class,'update']);
 Route::delete('/comment/delete',[CommentController::class,'delete']);
 Route::get('/comment/post/view',[CommentController::class,'post_comment_display']);
 

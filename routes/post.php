@@ -27,7 +27,6 @@ Route::put('/post/update/{id}',[PostController::class,'update']);
 Route::delete('/post/delete/{id}',[PostController::class,'delete']);
 Route::get('/get/post/{id}',[PostController::class,'get_post']);
 });
-
 //Route::get('/send_notification',[NotificationController::class,'send_notification']);
 
 

@@ -20,20 +20,29 @@ class JwtController extends Controller
             "data" =>$data
 );
             try
-           {
+            {
                 $token = JWT::encode($payload,$key,'HS256');
                 return $token;
-           }
+            }
             catch(Exception $e)
             {
                 return array('error'=>$e->getMessage());
             }
 
     }
-    public function jwt_decode($token)
+         public function jwt_decode($token)
          {
         $secret_key="example_key";
-        $decoded = JWT::decode($token, new Key($secret_key, 'HS256'));
-        return $decoded;
-    }
+
+        try{
+
+            $decoded = JWT::decode($token, new Key($secret_key, 'HS256'));
+            return $decoded;
+
+        }catch(Exception $e){
+            $data['error']=$e->getMessage();
+            $data['message']="Someting went Worng";
+            return response()->error($data,404);
+             }
+         }
 }

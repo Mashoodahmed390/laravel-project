@@ -8,96 +8,71 @@ use Illuminate\Http\Request;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use App\Models\User;
-
+use MongoDB\Client as mongodb;
+use Exception;
 class FriendController extends Controller
 {
     public function add_friend(Request $request)
     {
         $jwt = $request->bearerToken();
-        $key = "example_key";
-        $decoded = JWT::decode($jwt, new Key($key, 'HS256'));
-
-        if((Friend::where([["email",$request->email],["user_id",$decoded->data->id]])->exists()))
+        $decoded = (new JwtController)->jwt_decode($jwt);
+        $user = (new mongodb)->laravel_project->users->findOne(['_id'=>new \MongoDB\BSON\ObjectId($decoded->data->id)]);
+        foreach($user->friend as $friend)
         {
-            $m = [
-                "status"=>"Failed",
-                "message"=>"This user is already your friend"
-            ];
-
-            return response()->json($m);
-        }
-        else
-        {
-            $user = User::where('email',$request->email)->first();
-            $friend = new Friend();
-            $friend1 = new Friend();
-
-            //This will create a error
-            // $f = $user->id;
-            // $friend->email = $user->email;
-            // $friend->name = $user->name;
-            // $friend->user()->associate($decoded->data->id);
-            // $friend->save();
-            // //Making reverse friend
-            // $user = User::where('email',$decoded->data->email)->first();
-            // $friend->email = $user->email;
-            // $friend->name = $user->name;
-            // $friend->user()->associate($f);
-            // $friend->save();
-            //error Ends here
-
-            $f = $user->id;
-            $friend->email = $user->email;
-            $friend->name = $user->name;
-            $friend->user()->associate($decoded->data->id);
-            $friend->save();
-            //Making reverse friend
-
-            if(!(Friend::where('email',$decoded->data->email)->exists()))
+            if($friend->friend_id == $request->id)
             {
-
-            $user = User::where('email',$decoded->data->email)->first();
-            $friend1->email = $user->email;
-            $friend1->name = $user->name;
-            $friend1->user()->associate($f);
-            $friend1->save();
-
+                $m = [
+                    "status"=> "failed",
+                    "message"=>"This preson is already your friend"
+                ];
+                return response()->error($m,400);
             }
 
+        }
+        (new mongodb)->laravel_project->users->updateOne(["_id"=>new \MongoDB\BSON\ObjectId($decoded->data->id)],
+        ['$push'=>["friend"=>['friend_id'=>$request->id]]]);
+
+        (new mongodb)->laravel_project->users->updateOne(["_id"=>new \MongoDB\BSON\ObjectId($request->id)],
+        ['$push'=>["friend"=>['friend_id'=>$decoded->data->id]]]);
             $m = [
-                "status"=>"Susscess",
+                "status"=>"Success",
                 "message"=>"Friend Added"
             ];
-            return response()->json($m);
-            }
+            return response()->success($m,200);
+
     }
 
     public function remove_friend(Request $request)
     {
+        try{
         $jwt = $request->bearerToken();
-        $key = "example_key";
-        $decoded = JWT::decode($jwt, new Key($key, 'HS256'));
+        $decoded = (new JwtController)->jwt_decode($jwt);
+        $user = (new mongodb)->laravel_project->users->findOne(['_id'=>new \MongoDB\BSON\ObjectId($decoded->data->id),'friend.friend_id'=>$request->id]
+    );
+    //dd($user);
+        if(!isset($user))
+           {
+            throw new Exception("No such friend Exist");
+           }
+        (new mongodb)->laravel_project->users->updateOne(['_id'=>new \MongoDB\BSON\ObjectId($request->id)],
+        ['$pull'=>['friend'=>['friend_id'=>$decoded->data->id]]]
+    );
 
-        if(!Friend::where([["email",$request->email],["user_id",$decoded->data->id]])->exists())
-        {
-            $m = [
-                "status"=>"Failed",
-                "message"=>"No such User exists"
-            ];
-
-            return response()->json($m);
-        }
-        else{
-
-            $friend = Friend::where([["email",$request->email],["user_id",$decoded->data->id]]);
-            $friend->delete();
+        (new mongodb)->laravel_project->users->updateOne(['_id'=>new \MongoDB\BSON\ObjectId($decoded->data->id)],
+        ['$pull'=>['friend'=>['friend_id'=>$request->id]]]
+    );
 
             $m = [
                 "status"=>"Success",
                 "message"=>"Friend Deleted"
             ];
 
-            return response()->json($m);
+            return response()->success($m,201);
         }
+        catch(Exception $e)
+        {
+            return response()->error($e->getMessage(),400);
+        }
+
     }
 }

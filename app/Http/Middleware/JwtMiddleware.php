@@ -30,9 +30,9 @@ class JwtMiddleware
         JWT::$leeway = 60;
         try {
             $decoded= (new JwtController)->jwt_decode($request->bearerToken());
-            //dd($decoded);
+
             $user = (new mongodb)->laravel_project->users->find(['email'=>$decoded->data->email])->toArray();
-            //dd($user[0]->password);
+
             if($user[0]->verify==1)
             {
                 if(!isset($user))
@@ -52,6 +52,7 @@ class JwtMiddleware
             }
 
         } catch (Exception $e) {
+            if($e instanceof \MongoDB\Client )
             if ($e instanceof \Firebase\JWT\SignatureInvalidException){
                 return response()->json(['status' => 'Token is Invalid']);
             }else if ($e instanceof \Firebase\JWT\ExpiredException){
@@ -59,6 +60,8 @@ class JwtMiddleware
             }else{
                 return response()->json(['status' => "Authorization Token not found"]);
             }
+
+           return response()->json(['status' => $e->getMessage()]);
         }
         return $next($request);
     }

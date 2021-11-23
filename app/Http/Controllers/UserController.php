@@ -12,21 +12,16 @@ use Firebase\JWT\Key;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Hash;
 use MongoDB\Client as mongodb;
+use Exception;
 
 class UserController extends Controller
 {
     public function signup(UserRequest $request)
     {
-
+        try
+        {
         $validated = $request->validated();
         $validated['password'] = bcrypt($validated['password']);
-        $user = [
-            'name' => $validated['name'],
-            'info' => 'Press the Following Link to Verify Email',
-            'Verification_link'=>url('api/verifyEmail/'.$validated['email'])
-        ];
-
-        \Mail::to($request->email)->send(new \App\Mail\NewMail($user));
 
         $result = (new mongodb)->laravel_project->users;
         $r = $result->insertOne([
@@ -35,8 +30,21 @@ class UserController extends Controller
             'password' => $validated["password"],
             'verify' => 0
         ]);
+        $user = [
+            'name' => $validated['name'],
+            'info' => 'Press the Following Link to Verify Email',
+            'Verification_link'=>url('api/verifyEmail/'.$validated['email'])
+        ];
+
+        \Mail::to($request->email)->send(new \App\Mail\NewMail($user));
+
         $message = "Sign up successful";
         return response()->success($message,200);
+         }
+         catch(Exception $e)
+         {
+             return response()->error($e->getMessage(),400);
+         }
     }
 
     public function login(LoginRequest $request)
