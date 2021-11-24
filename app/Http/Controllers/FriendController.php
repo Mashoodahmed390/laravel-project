@@ -8,54 +8,36 @@ use Illuminate\Http\Request;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use App\Models\User;
+use Exception;
 
 class FriendController extends Controller
 {
     public function add_friend(Request $request)
     {
+        try
+        {
         $jwt = $request->bearerToken();
-        $key = "example_key";
-        $decoded = JWT::decode($jwt, new Key($key, 'HS256'));
-
+        $decoded = (new JwtController)->jwt_decode($jwt);
         if((Friend::where([["email",$request->email],["user_id",$decoded->data->id]])->exists()))
         {
             $m = [
                 "status"=>"Failed",
                 "message"=>"This user is already your friend"
             ];
-
-            return response()->json($m);
+            return response()->error($m,403);
         }
         else
         {
             $user = User::where('email',$request->email)->first();
             $friend = new Friend();
             $friend1 = new Friend();
-
-            //This will create a error
-            // $f = $user->id;
-            // $friend->email = $user->email;
-            // $friend->name = $user->name;
-            // $friend->user()->associate($decoded->data->id);
-            // $friend->save();
-            // //Making reverse friend
-            // $user = User::where('email',$decoded->data->email)->first();
-            // $friend->email = $user->email;
-            // $friend->name = $user->name;
-            // $friend->user()->associate($f);
-            // $friend->save();
-            //error Ends here
-
             $f = $user->id;
             $friend->email = $user->email;
             $friend->name = $user->name;
             $friend->user()->associate($decoded->data->id);
             $friend->save();
-            //Making reverse friend
-
             if(!(Friend::where('email',$decoded->data->email)->exists()))
             {
-
             $user = User::where('email',$decoded->data->email)->first();
             $friend1->email = $user->email;
             $friend1->name = $user->name;
@@ -63,41 +45,51 @@ class FriendController extends Controller
             $friend1->save();
 
             }
-
             $m = [
-                "status"=>"Susscess",
+                "status"=>"success",
                 "message"=>"Friend Added"
             ];
-            return response()->json($m);
+            return response()->success($m,200);
+        }
+            }
+            catch(Exception $e)
+            {
+                return response()->error($e->getMessage(),400);
             }
     }
 
     public function remove_friend(Request $request)
     {
+        try
+        {
         $jwt = $request->bearerToken();
-        $key = "example_key";
-        $decoded = JWT::decode($jwt, new Key($key, 'HS256'));
-
+        $decoded = (new JwtController)->jwt_decode($jwt);
         if(!Friend::where([["email",$request->email],["user_id",$decoded->data->id]])->exists())
         {
             $m = [
                 "status"=>"Failed",
                 "message"=>"No such User exists"
             ];
-
-            return response()->json($m);
+            return response()->error($m,404);
         }
         else{
 
-            $friend = Friend::where([["email",$request->email],["user_id",$decoded->data->id]]);
+            $friend = Friend::where([["email",$request->email],["user_id",$decoded->data->id]])->first();
+            $friend_data = User::where("email",$request->email)->first();
+            $friend_id = $friend_data->id;
             $friend->delete();
-
+            $friend = Friend::where([["email",$decoded->data->email],["user_id",$friend_id]]);
+            $friend->delete();
             $m = [
                 "status"=>"Success",
                 "message"=>"Friend Deleted"
             ];
-
-            return response()->json($m);
+            return response()->success($m,200);
         }
-    }
+        }
+        catch(Exception $e)
+        {
+            return response()->error($e->getMessage(),400);
+        }
+        }
 }

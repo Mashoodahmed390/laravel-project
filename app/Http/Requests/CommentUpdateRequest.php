@@ -2,11 +2,11 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
-use Illuminate\Contracts\Validation\Validator;
 
-class StorePostRequest extends FormRequest
+class CommentUpdateRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -15,7 +15,7 @@ class StorePostRequest extends FormRequest
      */
     public function authorize()
     {
-        return true;
+        return false;
     }
 
     /**
@@ -26,8 +26,9 @@ class StorePostRequest extends FormRequest
     public function rules()
     {
         return [
-            'body' => 'required',
-            'file' => 'nullable'
+            "comment_id"=>"required|integer",
+            "post_id"=>"required|integer",
+            "body"=>"nullable"
         ];
     }
     public function failedValidation(Validator $v)

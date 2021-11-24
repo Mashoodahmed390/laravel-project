@@ -51,11 +51,11 @@ class JwtMiddleware
 
         } catch (Exception $e) {
             if ($e instanceof \Firebase\JWT\SignatureInvalidException){
-                return response()->json(['status' => 'Token is Invalid']);
+                return response()->error(['status' => 'Token is Invalid'],400);
             }else if ($e instanceof \Firebase\JWT\ExpiredException){
-                return response()->json(['status' => 'Token is Expired']);
+                return response()->error(['status' => 'Token is Expired'],401);
             }else{
-                return response()->json(['status' => "Authorization Token not found"]);
+                return response()->error(['status' => "Authorization Token not found"],400);
             }
         }
         return $next($request);

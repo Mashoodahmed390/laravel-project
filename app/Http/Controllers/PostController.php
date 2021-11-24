@@ -12,67 +12,54 @@ use App\Models\User;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\JwtController;
+use App\Http\Requests\UpdatePostRequest;
+use Exception;
 
 class PostController extends Controller
 {
     public function post(StorePostRequest $request)
     {
-        $jwt = $request->bearerToken();
-        // $key = "example_key";
-        // $decoded = JWT::decode($jwt, new Key($key, 'HS256'));
-        // dd($decoded);
-        //dd(User::where("remember_token",$jwt)->exists());
-        //dd(User::where("remember_token",$jwt)->value("remember_token") == $jwt);
-        if(User::where("remember_token",$jwt)->exists())
+        try
         {
-
-        $key = "example_key";
-        $decoded = JWT::decode($jwt, new Key($key, 'HS256'));
-
-        $user = User::where('email',$decoded->data->email)->first();
+        $jwt = $request->bearerToken();
+        $p = new Post();
+        $decoded = (new JwtController)->jwt_decode($jwt);
+        $user = User::where('id',$decoded->data->id)->first();
+        if($request->has('file'))
+        {
         $image = $request->file;  // your base64 encoded
         $imageName = Str::random(10) . '.jpg';
         $path = 'storage/path/public/'.$imageName;
-
         //Storage::disk('local')->put($imageName, base64_decode($image));
-
-        $p = new Post();
-        $p->body = $request->body;
         $p->file = $path;
+        }
+        $p->body = $request->body;
+
 
         $user->post()->save($p);
 
-        // Another way to add data in database
-        // $data = DB::table('posts')->insert([
-        //     "body" => $request->body,
-        //     "user_id"=> $decoded->data->id,
-        //     "file"=> $path,
-        // ]);
-
-
         $m = ["status"=>"success",
-              "message"=>"Post submited"
-    ];
-        return response()->json($m);
-
+              "message"=>"Post submited"];
+        return response()->success($m,201);
         }
-        else{
-            dd('get out plz');
+        catch(Exception $e)
+        {
+            return response()->error($e->getMessage(),400);
         }
-    }
+        }
 
-    public function update(Request $request,$id)
+
+    public function update(UpdatePostRequest $request,$id)
     {
+        try
+        {
         $jwt = $request->bearerToken();
-        $key = "example_key";
-        $decoded = JWT::decode($jwt, new Key($key, 'HS256'));
-
-        //dd(Post::where('user_id',$decoded->data->id)->exists());
-        if($request->id == $decoded->data->id)
+        $post = Post::find($id);
+        $decoded = (new JwtController)->jwt_decode($jwt);
+        if($post->user_id == $decoded->data->id)
         {
             $user = User::where('email',$decoded->data->email)->first();
-
-            $post = Post::find($id);
             if($request->has('body'))
             {
             $post->body = $request->body;
@@ -89,56 +76,63 @@ class PostController extends Controller
                 "Message"=>"Post was Submitted"
             ];
 
-            return response()->json($m);
+            return response()->success($m,201);
         }
         else{
             $m = [
                 "message"=> "your not the owner of this Post"
             ];
-            return response()->json($m);
+            return response()->error($m,403);
         }
-        // $user = User::find(1);
-        // dd($user->post[0]->id);
-        //dd($user->post()->get());
-        // dd($post[0]->body);
-
-      //  return response( )->json($user->post());
+        }
+        catch(Exception $e)
+        {
+            return response()->error($e->getMessage(),400);
+        }
     }
 
     public function delete(Request $request,$id)
     {
+        try
+        {
         $jwt = $request->bearerToken();
-        $key = "example_key";
-        $decoded = JWT::decode($jwt, new Key($key, 'HS256'));
-
-        if($request->id == $decoded->data->id)
+        $decoded = (new JwtController)->jwt_decode($jwt);
+        $post = Post::find($id);
+        if(!isset($post))
+        {
+            throw new Exception("Post does not exist");
+        }
+        if($post->user_id == $decoded->data->id)
         {
             $user = User::where('email',$decoded->data->email)->first();
             $user->post()->whereId($id)->delete();
-
             $m = [
                 "message"=>"Post Deleted"
             ];
-
+            return response()->success($m,201);
         }
         else
         {
             $m = [
                 "message"=>"This is not your Post so therefore u Cant delete"
             ];
-            return response()->json($m);
+            return response()->error($m,403);
         }
-
+        }
+        catch(Exception $e)
+        {
+            return response()->error($e->getMessage(),400);
+        }
 
     }
 
     public function get_post(Request $r,$id)
     {
+        try
+        {
         $jwt = $r->bearerToken();
-        $key = "example_key";
-        $decoded = JWT::decode($jwt, new Key($key, 'HS256'));
+        $decoded = (new JwtController)->jwt_decode($jwt);
         $post = Post::find($id);
-
         $friend = $post->user()->get();
 
         if(($post->privacy == 0) || (Friend::where([["user_id",$decoded->data->id],["email",$friend[0]->email]])->exists() || ($decoded->data->id == $post->user_id)))
@@ -149,7 +143,6 @@ class PostController extends Controller
             "post" => $post,
             "comment" =>$post_comment
         ];
-
         return response()->json($data);
 
         }
@@ -161,5 +154,11 @@ class PostController extends Controller
 
             return response()->json($m);
         }
+            }
+            catch(Exception $e)
+            {
+                return response()->error($e->getMessage(),400);
+            }
     }
+
 }
