@@ -21,14 +21,10 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
-});
-
 Route::post('/signup',[UserController::class,'signup']);
 Route::post('/login',[UserController::class,'login']);
 Route::get('/verifyEmail/{email}',[UserController::class,'verify']);
 
-
-
-
+Route::middleware(['Jwt'])->group(function () {
+Route::post('/update',[UserController::class,'update_user']);
+});

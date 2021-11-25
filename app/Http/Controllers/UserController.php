@@ -27,8 +27,8 @@ class UserController extends Controller
             'info' => 'Press the Following Link to Verify Email',
             'Verification_link'=>url('api/verifyEmail/'.$validated['email'])
         ];
-
-        \Mail::to($request->email)->send(new \App\Mail\NewMail($user));
+      //  \Mail::to($request->email)->send(new \App\Mail\NewMail($user));
+        dispatch(new \App\Jobs\SendEmailJob($request->email,$user));
 
          User::create($validated);
         $message = "Sign up successful";
@@ -45,12 +45,10 @@ class UserController extends Controller
         {
         $validate = $request->validated();
         $user = User::where("email",$validate["email"])->first();
-
         if(empty($user))
         {
-            throw new Exception("No such User Exist");
+            throw new Exception("either email or password is wrong");
         }
-
         if(Hash::check($validate["password"], $user->password))
         {
             if($user->verify)
@@ -60,26 +58,19 @@ class UserController extends Controller
                 "email"=>$validate["email"],
                 "password"=>$validate["password"]
             ];
-
             $jwt = (new JwtController)->jwt_encode($data);
-
             User::where("email",$user->email)->update(["remember_token"=>$jwt]);
-            //$user->remember_token=$jwt;
-            //User::where("email",$user->email)->update(["remember_token"=>$jwt]);
-
             $response = [
                 "status"=>"success",
                 "token"=> $jwt
             ];
             return response()->success($response,200);
-
         }
         else{
             $response = ["status"=>"failed","message"=>"Your mail is not verified"];
             return response()->error($response,403);
         }
     }
-
         else
             {
                 $response = ["status"=>"failed","message"=>"Either email or Password was wrong"];
@@ -108,5 +99,40 @@ class UserController extends Controller
                         return response()->error("Failed",400);
                     }
                 }
+            }
+            public function update_user(Request $request)
+            {
+                try
+                {
+                $decoded = $request->decoded;
+                $user = (new User)->find($decoded->data->id);
+                if($request->has("name"))
+                {
+                    $user->name = $request->name;
+                }
+                if($request->has("password"))
+                {
+                    $user->name = $request->password;
+                }
+                if($request->has("email"))
+                {
+                    $user->name = $request->email;
+                }
+                $v = $user->save();
+                if($v)
+                {
+                return response()->success('User updated',201);
+                }
+                else
+                {
+                    return response()->success('Please Enter in field to update',201);
+                }
+
+                }
+                catch(Exception $e)
+                {
+                    return response()->error($e->getMessage(),401);
+                }
+
             }
         }

@@ -22,9 +22,8 @@ class PostController extends Controller
     {
         try
         {
-        $jwt = $request->bearerToken();
         $p = new Post();
-        $decoded = (new JwtController)->jwt_decode($jwt);
+        $decoded = $request->decoded;
         $user = User::where('id',$decoded->data->id)->first();
         if($request->has('file'))
         {
@@ -48,15 +47,12 @@ class PostController extends Controller
             return response()->error($e->getMessage(),400);
         }
         }
-
-
     public function update(UpdatePostRequest $request,$id)
     {
         try
         {
-        $jwt = $request->bearerToken();
         $post = Post::find($id);
-        $decoded = (new JwtController)->jwt_decode($jwt);
+        $decoded = $request->decoded;
         if($post->user_id == $decoded->data->id)
         {
             $user = User::where('email',$decoded->data->email)->first();
@@ -95,8 +91,7 @@ class PostController extends Controller
     {
         try
         {
-        $jwt = $request->bearerToken();
-        $decoded = (new JwtController)->jwt_decode($jwt);
+        $decoded = $request->decoded;
         $post = Post::find($id);
         if(!isset($post))
         {
@@ -123,18 +118,14 @@ class PostController extends Controller
         {
             return response()->error($e->getMessage(),400);
         }
-
     }
-
-    public function get_post(Request $r,$id)
+    public function get_post(Request $request,$id)
     {
         try
         {
-        $jwt = $r->bearerToken();
-        $decoded = (new JwtController)->jwt_decode($jwt);
+        $decoded = $request->decoded;
         $post = Post::find($id);
         $friend = $post->user()->get();
-
         if(($post->privacy == 0) || (Friend::where([["user_id",$decoded->data->id],["email",$friend[0]->email]])->exists() || ($decoded->data->id == $post->user_id)))
         {
         $post_comment =$post->comment()->get();
@@ -144,14 +135,12 @@ class PostController extends Controller
             "comment" =>$post_comment
         ];
         return response()->json($data);
-
         }
         else{
             $m = [
                 'status'=>'Denied',
                 'message'=>'The post is private'
             ];
-
             return response()->json($m);
         }
             }

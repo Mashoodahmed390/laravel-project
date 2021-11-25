@@ -58,6 +58,7 @@ class JwtMiddleware
                 return response()->error(['status' => "Authorization Token not found"],400);
             }
         }
+        $request = $request->merge(array("decoded"=>$decoded));
         return $next($request);
     }
 }

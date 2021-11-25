@@ -12,27 +12,19 @@ class ChatboxController extends Controller
 {
     public function send_message(Request $request)
     {
-        $jwt = $request->bearerToken();
-        $key = "example_key";
-        $decoded = JWT::decode($jwt, new Key($key, 'HS256'));
-
+        $decoded = $request->decoded;
         $chat = new Chat();
         $usermessage = new Usermessage();
-
         $chat->message = $request->message;
         $chat->user()->associate($decoded->data->id);
         $chat->save();
-
         $usermessage->user()->associate($decoded->data->id);
         $usermessage->chat()->associate($chat->id);
         $usermessage->save();
-
         $m = [
             "status"=>"success",
             "message"=>"message Sent"
         ];
-
         return response()->json($m);
-
     }
 }

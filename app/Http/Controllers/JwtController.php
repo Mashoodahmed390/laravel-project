@@ -11,7 +11,7 @@ class JwtController extends Controller
 {
     public function jwt_encode($data)
     {
-        $key = "example_key";
+        $key = config("constant.secret");
         $payload= array(
             "iss" => "http://localhost.com",
             "aud" => "http://localhost.com",
@@ -32,8 +32,9 @@ class JwtController extends Controller
     }
     public function jwt_decode($token)
          {
-        $secret_key="example_key";
-        $decoded = JWT::decode($token, new Key($secret_key, 'HS256'));
+            $key = config("constant.secret");
+        $decoded = JWT::decode($token, new Key($key, 'HS256'));
         return $decoded;
+        
     }
 }

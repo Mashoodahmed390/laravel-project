@@ -19,8 +19,7 @@ class CommentController extends Controller
     {
         try
         {
-        $jwt = $request->bearerToken();
-        $decoded = (new JwtController)->jwt_decode($jwt);
+        $decoded = $request->decoded;
         $user = User::where("id",$decoded->data->id)->first();
         $post = Post::where("id",$request->id)->first();
         $comment = new Comment();
@@ -55,8 +54,7 @@ class CommentController extends Controller
     {
         try
         {
-        $jwt = $request->bearerToken();
-        $decoded = (new JwtController)->jwt_decode($jwt);
+        $decoded = $request->decoded;
         $comment = Comment::where('id',$request->comment_id)->where('post_id',$request->post_id)->first();
         if(!isset($comment))
         {
@@ -64,7 +62,6 @@ class CommentController extends Controller
                 "status"=>"failed",
                 "message"=>"no such comment exist"
             ];
-
             return response()->error($m,404);
         }
         if(($comment->user_id == $decoded->data->id))
@@ -95,8 +92,7 @@ class CommentController extends Controller
     {
         try
         {
-        $jwt = $request->bearerToken();
-        $decoded = (new JwtController)->jwt_decode($jwt);
+        $decoded = $request->decoded;
         $comment = Comment::where('id',$request->comment_id)->where('post_id',$request->post_id)->first();
         if(!isset($comment))
         {

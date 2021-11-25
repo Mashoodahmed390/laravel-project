@@ -16,8 +16,7 @@ class FriendController extends Controller
     {
         try
         {
-        $jwt = $request->bearerToken();
-        $decoded = (new JwtController)->jwt_decode($jwt);
+        $decoded = $request->decoded;
         if((Friend::where([["email",$request->email],["user_id",$decoded->data->id]])->exists()))
         {
             $m = [
@@ -62,8 +61,7 @@ class FriendController extends Controller
     {
         try
         {
-        $jwt = $request->bearerToken();
-        $decoded = (new JwtController)->jwt_decode($jwt);
+        $decoded = $request->decoded;
         if(!Friend::where([["email",$request->email],["user_id",$decoded->data->id]])->exists())
         {
             $m = [
@@ -73,7 +71,6 @@ class FriendController extends Controller
             return response()->error($m,404);
         }
         else{
-
             $friend = Friend::where([["email",$request->email],["user_id",$decoded->data->id]])->first();
             $friend_data = User::where("email",$request->email)->first();
             $friend_id = $friend_data->id;
