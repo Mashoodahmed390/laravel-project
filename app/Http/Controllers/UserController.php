@@ -11,6 +11,8 @@ use Firebase\JWT\Key;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Hash;
 use App\Http\Requests\UserRequest;
+use App\Http\Resources\UserResource;
+use App\Models\Post;
 use Exception;
 
 class UserController extends Controller
@@ -134,5 +136,11 @@ class UserController extends Controller
                     return response()->error($e->getMessage(),401);
                 }
 
+            }
+            public function resource(Request $request)
+            {
+                $decoded = $request->decoded;
+                $user = User::find($decoded->data->id);
+                return new UserResource($user);
             }
         }

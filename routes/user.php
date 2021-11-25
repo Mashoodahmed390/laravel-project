@@ -27,4 +27,6 @@ Route::get('/verifyEmail/{email}',[UserController::class,'verify']);
 
 Route::middleware(['Jwt'])->group(function () {
 Route::post('/update',[UserController::class,'update_user']);
+Route::get('/resource',[UserController::class,'resource']);
+
 });

@@ -40,7 +40,7 @@ class NotificationController extends Controller
 
         ];
 
-        dispatch($post_owner_id->notify(New CommentNotification($data)));
+        $post_owner_id->notify(New CommentNotification($data));
 
     }
 }
